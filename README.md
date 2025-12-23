@@ -13,7 +13,7 @@ Ansible installed on the Control node. Managed nodes are linux machines with SSH
 
 ### C Dev setup
 
-Install C development environment.
+Install C development environment: gcc, clang, make, gdb, valgrind, bear, etc..
 
 ### Git setup
 
