@@ -1,0 +1,201 @@
+---
+# C Development Environment role - Install compilers and tools
+# Location: roles/c_dev/tasks/main.yml
+
+# Install build-essential (gcc, make, etc.) on Debian/Ubuntu
+- name: Install build-essential on Debian/Ubuntu
+  apt:
+    name:
+      - build-essential
+      - gcc
+      - clang
+      - clang-format
+      - clang-tools
+      - cppcheck
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  tags:
+    - install
+    - c_dev
+
+- name: Install C development tools on RedHat-based systems
+  yum:
+    name:
+      - gcc
+      - clang
+      - clang-tools-extra
+      - cppcheck
+      - make
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags:
+    - install
+    - c_dev
+
+# Install additional helpful tools
+- name: Install additional C dev tools
+  apt:
+    name:
+      - gdb
+      - valgrind
+      - bear
+    state: present
+  when: ansible_os_family == "Debian"
+  tags:
+    - install
+    - c_dev
+
+# Verify installations
+- name: Verify gcc installation
+  command: gcc --version
+  register: gcc_version
+  changed_when: false
+  tags:
+    - install
+    - c_dev
+
+- name: Verify clang installation
+  command: clang --version
+  register: clang_version
+  changed_when: false
+  tags:
+    - install
+    - c_dev
+
+- name: Verify clang-format installation
+  command: clang-format --version
+  register: clang_format_version
+  changed_when: false
+  tags:
+    - install
+    - c_dev
+
+- name: Verify cppcheck installation
+  command: cppcheck --version
+  register: cppcheck_version
+  changed_when: false
+  tags:
+    - install
+    - c_dev
+
+# Display all installed versions
+- name: Display C development tools versions
+  debug:
+    msg: |
+      ✓ C Development Environment Installed:
+      {{ gcc_version.stdout.split('\n')[0] }}
+      {{ clang_version.stdout.split('\n')[0] }}
+      {{ clang_format_version.stdout }}
+      {{ cppcheck_version.stdout }}
+  tags:
+    - install
+    - c_dev
+
+# Optional: Create project template directory structure
+- name: Create C project templates directory
+  file:
+    path: "{{ ansible_user_dir }}/c_project_templates"
+    state: directory
+    mode: '0755'
+  tags:
+    - config
+    - c_dev
+
+- name: Deploy Makefile template
+  copy:
+    dest: "{{ ansible_user_dir }}/c_project_templates/Makefile"
+    mode: '0644'
+    content: |
+      # Basic Makefile template for C projects
+      
+      CC := gcc
+      CFLAGS := -Wall -Wextra -pedantic -std=c99 -O2
+      CFLAGS_DEBUG := -Wall -Wextra -pedantic -std=c99 -g -O0
+      
+      # Source files
+      SOURCES := $(wildcard src/*.c)
+      OBJECTS := $(SOURCES:src/%.c=build/%.o)
+      EXECUTABLE := bin/program
+      
+      # Targets
+      all: $(EXECUTABLE)
+      
+      debug: CFLAGS := $(CFLAGS_DEBUG)
+      debug: clean $(EXECUTABLE)
+      
+      $(EXECUTABLE): $(OBJECTS)
+      	mkdir -p bin
+      	$(CC) $(CFLAGS) -o $@ $^
+      
+      build/%.o: src/%.c
+      	mkdir -p build
+      	$(CC) $(CFLAGS) -c -o $@ $<
+      
+      format:
+      	clang-format -i src/*.c src/*.h
+      
+      check:
+      	cppcheck --enable=all src/
+      
+      clean:
+      	rm -rf build/ bin/
+      
+      .PHONY: all debug format check clean
+  tags:
+    - config
+    - c_dev
+
+- name: Deploy clang-format config template
+  copy:
+    dest: "{{ ansible_user_dir }}/c_project_templates/.clang-format"
+    mode: '0644'
+    content: |
+      ---
+      Language: Cpp
+      BasedOnStyle: LLVM
+      IndentWidth: 4
+      TabWidth: 4
+      UseTab: Never
+      ColumnLimit: 100
+      AlignTrailingComments: true
+      SpaceBeforeParens: ControlStatements
+      BreakBeforeBraces: Linux
+  tags:
+    - config
+    - c_dev
+
+- name: Create project template script
+  copy:
+    dest: "{{ ansible_user_dir }}/c_project_templates/new_project.sh"
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      # Quick C project scaffold generator
+      
+      if [ -z "$1" ]; then
+          echo "Usage: $0 <project_name>"
+          exit 1
+      fi
+      
+      PROJECT=$1
+      mkdir -p "$PROJECT"/{src,include,build,bin}
+      
+      # Copy templates
+      cp Makefile "$PROJECT/"
+      cp .clang-format "$PROJECT/"
+      
+      # Create main.c skeleton
+      cat > "$PROJECT/src/main.c" << 'EOF'
+      #include <stdio.h>
+      
+      int main(void) {
+          printf("Hello, World!\n");
+          return 0;
+      }
+      EOF
+      
+      echo "✓ Project '$PROJECT' created successfully!"
+  tags:
+    - config
+    - c_dev

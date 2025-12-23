@@ -1,0 +1,13 @@
+---
+# Global variables
+# Location: inventory/group_vars/all.yml
+
+# Global configuration applied to all hosts
+ansible_user_shell: /bin/bash
+ansible_user_groups: sudo
+
+# Package management settings
+package_cache_valid_time: 3600  # 1 hour
+
+# Logging and debugging
+verbosity_level: 0

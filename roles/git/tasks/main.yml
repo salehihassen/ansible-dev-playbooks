@@ -1,0 +1,71 @@
+---
+# Git role - Installation and basic configuration
+# Location: roles/git/tasks/main.yml
+
+- name: Install git on Debian/Ubuntu
+  apt:
+    name: git
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  register: git_install
+  tags:
+    - install
+    - git
+
+- name: Install git-lfs on Debian/Ubuntu
+  apt:
+    name: git-lfs
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  register: git_lfs_install
+  tags:
+    - install
+    - git
+
+- name: Install git on RedHat-based systems
+  yum:
+    name: git
+    state: present
+  when: ansible_os_family == "RedHat"
+  register: git_install
+  tags:
+    - install
+    - git
+
+- name: Install git-lfs on RedHat-based systems
+  yum:
+    name: git-lfs
+    state: present
+  when: ansible_os_family == "RedHat"
+  register: git_lfs_install
+  tags:
+    - install
+    - git
+
+- name: Verify git installation
+  command: git --version
+  register: git_version
+  changed_when: false
+  tags:
+    - install
+    - git
+
+- name: Display installed git version
+  debug:
+    msg: "Git installed: {{ git_version.stdout }}"
+  tags:
+    - install
+    - git
+
+- name: Verify git-lfs installation
+  command: git lfs version
+  register: git_lfs_version
+
+- name: Display installed git-lfs version
+  debug:
+    msg: "Git installed: {{ git_lfs_version.stdout }}"
+  tags:
+    - install
+    - git

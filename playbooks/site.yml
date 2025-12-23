@@ -1,0 +1,42 @@
+---
+# Main site.yml - Entry point for all dev setup
+# Location: playbooks/site.yml
+
+- name: Dev Environment Setup
+  hosts: dev_machines
+  become: yes
+  gather_facts: yes
+
+  # Pre-flight checks
+  pre_tasks:
+    - name: Validate required Ansible version
+      assert:
+        that:
+          - ansible_version.full is version('2.10', '>=')
+        fail_msg: "Ansible 2.10+ is required"
+      tags: always
+
+    - name: Update apt cache (Debian/Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+      tags: install
+
+  # Core roles
+  roles:
+    - role: git
+      tags: [git, install]
+    - role: tmux
+      tags: [tmux, install, config]
+    - role: c_dev
+      tags: [c_dev, install, config]
+    - role: x11_forward
+      tags: [x11, install, config]
+
+  # Post-flight tasks
+  post_tasks:
+    - name: Display setup completion message
+      debug:
+        msg: "✓ Dev environment setup complete!"
+      tags: always

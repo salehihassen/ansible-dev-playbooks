@@ -1,0 +1,24 @@
+---
+# X11 Forwarding role metadata
+
+galaxy_info:
+  author: Saleh Hassen
+  description: Configure SSH server and install X11 packages for GUI application forwarding
+  company: Personal
+  license: MIT
+  min_ansible_version: "2.10"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "18.04"
+        - "20.04"
+        - "22.04"
+        - "24.04"
+    - name: Debian
+      versions:
+        - "buster"
+        - "bullseye"
+        - "bookworm"
+
+dependencies: []

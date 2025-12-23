@@ -1,0 +1,4 @@
+
+# Don't track host vars
+inventory/host_vars/*.yml
+!inventory/host_vars/template.yml

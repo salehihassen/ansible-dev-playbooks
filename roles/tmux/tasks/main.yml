@@ -1,0 +1,98 @@
+---
+# Tmux role - Installation and configuration with resurrect plugin
+# Location: roles/tmux/tasks/main.yml
+
+# Install tmux
+- name: Install tmux on Debian/Ubuntu
+  apt:
+    name: tmux
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  tags:
+    - install
+    - tmux
+
+- name: Install tmux on RedHat-based systems
+  yum:
+    name: tmux
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags:
+    - install
+    - tmux
+
+# Ensure ~/.config directory exists
+- name: Create .config directory
+  file:
+    path: "{{ ansible_user_dir }}/.config"
+    state: directory
+    mode: '0755'
+  tags:
+    - config
+    - tmux
+
+# Install tmux-resurrect plugin
+- name: Create tmux plugins directory
+  file:
+    path: "{{ ansible_user_dir }}/.tmux/plugins"
+    state: directory
+    mode: '0755'
+  tags:
+    - config
+    - tmux
+
+- name: Clone tmux-resurrect plugin
+  git:
+    repo: "https://github.com/tmux-plugins/tmux-resurrect.git"
+    dest: "{{ ansible_user_dir }}/.tmux/plugins/tmux-resurrect"
+    version: master
+  tags:
+    - config
+    - tmux
+
+# Deploy tmux configuration
+- name: Deploy tmux configuration file
+  template:
+    src: tmux.conf.j2
+    dest: "{{ ansible_user_dir }}/.tmux.conf"
+    mode: '0644'
+  notify: reload tmux
+  tags:
+    - config
+    - tmux
+
+# Verify tmux installation
+- name: Verify tmux installation
+  command: tmux -V
+  register: tmux_version
+  changed_when: false
+  tags:
+    - install
+    - tmux
+
+- name: Display installed tmux version
+  debug:
+    msg: "Tmux installed: {{ tmux_version.stdout }}"
+  tags:
+    - install
+    - tmux
+
+- name: Check 256 color support
+  shell: |
+    tmux -u -c "display-message -p '#{client_width}'"
+  environment:
+    TERM: screen-256color
+  register: color_test
+  changed_when: false
+  failed_when: false
+  tags:
+    - config
+    - tmux
+
+- name: Confirm 256 color configuration
+  debug:
+    msg: "✓ Tmux configured for 256 colors with resurrect plugin"
+  tags:
+    - config
+    - tmux

@@ -1,0 +1,164 @@
+---
+# X11 Forwarding role - Setup SSH server and X11 packages for GUI app forwarding
+# Location: roles/x11_forward/tasks/main.yml
+
+# Install X11 and SSH forwarding dependencies
+- name: Install X11 libraries on Debian/Ubuntu
+  apt:
+    name:
+      - xauth
+      - xclip
+      - xsel
+      - x11-apps
+      - x11-utils
+      - libx11-6
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  tags:
+    - install
+    - x11
+
+- name: Install X11 libraries on RedHat-based systems
+  yum:
+    name:
+      - xauth
+      - xclip
+      - xsel
+      - xorg-x11-apps
+      - xorg-x11-utils
+      - libX11
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags:
+    - install
+    - x11
+
+# Ensure OpenSSH server is installed
+- name: Install OpenSSH server on Debian/Ubuntu
+  apt:
+    name: openssh-server
+    state: present
+  when: ansible_os_family == "Debian"
+  tags:
+    - install
+    - x11
+
+- name: Install OpenSSH server on RedHat-based systems
+  yum:
+    name: openssh-server
+    state: present
+  when: ansible_os_family == "RedHat"
+  tags:
+    - install
+    - x11
+
+# Configure SSH server for X11 forwarding
+- name: Enable X11Forwarding in SSH config
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?X11Forwarding"
+    line: "X11Forwarding yes"
+    state: present
+  notify: restart ssh
+  tags:
+    - config
+    - x11
+
+- name: Enable X11UseLocalhost in SSH config
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?\s*X11UseLocalhost\s+[a-z,A-Z]+'
+    line: "X11UseLocalhost yes"
+    state: present
+  notify: restart ssh
+  tags:
+    - config
+    - x11
+
+- name: Set X11DisplayOffset in SSH config
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?\s*X11DisplayOffset.*'
+    line: "X11DisplayOffset 10"
+    state: present
+  notify: restart ssh
+  tags:
+    - config
+    - x11
+
+- name: Ensure PermitUserEnvironment is enabled for X11
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?PermitUserEnvironment"
+    line: "PermitUserEnvironment yes"
+    state: present
+  notify: restart ssh
+  tags:
+    - config
+    - x11
+
+# Verify SSH configuration syntax
+- name: Verify SSH config syntax
+  command: sshd -t
+  changed_when: false
+  tags:
+    - config
+    - x11
+
+# Ensure SSH service is running
+- name: Ensure SSH service is enabled and running
+  service:
+    name: ssh
+    enabled: yes
+    state: started
+  tags:
+    - config
+    - x11
+
+# Create ~/.Xauthority directory if needed
+- name: Ensure user X11 directory exists
+  file:
+    path: "{{ ansible_user_dir }}/.X11-unix"
+    state: directory
+    mode: "0700"
+  tags:
+    - config
+    - x11
+
+# Display verification information
+- name: Display X11 forwarding status
+  debug:
+    msg: |
+      ✓ X11 Forwarding configured successfully!
+
+      To use X11 forwarding, SSH from your client with:
+        ssh -X user@{{ ansible_default_ipv4.address }}
+
+      For trusted forwarding (faster, less secure):
+        ssh -Y user@{{ ansible_default_ipv4.address }}
+
+      SSH Configuration:
+        - X11Forwarding: enabled
+        - X11UseLocalhost: yes
+        - X11DisplayOffset: 10
+        - PermitUserEnvironment: yes
+  tags:
+    - config
+    - x11
+
+# Verify xauth is installed and working
+- name: Verify xauth installation
+  command: xauth version
+  register: xauth_version
+  changed_when: false
+  tags:
+    - install
+    - x11
+
+- name: Display xauth version
+  debug:
+    msg: "{{ xauth_version.stdout.split('\n')[0] }}"
+  tags:
+    - install
+    - x11
