@@ -1,8 +1,34 @@
 # Dev Setup Ansible Playbooks
 
+## Pre-reqs
 
+Ansible installed on the Control node. Managed nodes are linux machines with SSH enabled.
 
-## Instances I used this
+## Setup
+
+- Add managed nodes to [inventory/hosts.yml](./inventory/hosts.yml)
+- Add hostvars to [/inventory/host_vars/](./inventory/host_vars/)
+
+## Roles
+
+### C Dev setup
+
+Install C development environment.
+
+### Git setup
+
+Install Git and Git LFS.
+
+### Tmux setup
+
+Install Tmux with preferred config.
+
+### X11 setup
+
+Enable X11 forwarding for remote access to GUIs.
+
+## Appendix
+### Instances I used this
 
 
 Dec 23 2025 - automate setting up x11 forwarding support for one of my personal servers
