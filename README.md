@@ -1,5 +1,12 @@
 # Dev Setup Ansible Playbooks
 
+## MR TODO
+- [ ] Make install
+- [ ] Cmake 4.2+ install via source
+- [ ] Ninja install
+- [ ] clang-format install
+- [ ] ...
+
 ## Pre-reqs
 
 Ansible installed on the Control node. Managed nodes are linux machines with SSH enabled.
