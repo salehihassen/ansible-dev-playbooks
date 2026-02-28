@@ -11,6 +11,10 @@ Ansible installed on the Control node. Managed nodes are linux machines with SSH
 
 ## Roles
 
+### Editors
+
+Install editors of choice: vs code, cursor, vim, neovim, and/or zed
+
 ### C Dev setup
 
 Install C development environment: gcc, clang, make, gdb, valgrind, bear, etc..

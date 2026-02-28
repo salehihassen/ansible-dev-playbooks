@@ -1,0 +1,282 @@
+# ----------------------------
+# Guardrails: Debian-family only
+# ----------------------------
+- name: Fail if not Debian-family
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == "Debian"
+    fail_msg: >
+      This role supports Debian-family distros only (Debian/Ubuntu/Pop!_OS).
+      Detected: os_family={{ ansible_facts.os_family }}, distro={{ ansible_facts.distribution }}.
+    success_msg: "OS check passed: Debian-family detected."
+
+# Normalize arch for auto URLs
+- name: Determine normalized architecture (amd64/arm64)
+  ansible.builtin.set_fact:
+    editors_arch: >-
+      {{
+        'amd64' if ansible_facts.architecture in ['x86_64', 'amd64'] else
+        'arm64' if ansible_facts.architecture in ['aarch64', 'arm64'] else
+        'unsupported'
+      }}
+
+- name: Fail if unsupported CPU architecture
+  ansible.builtin.assert:
+    that:
+      - editors_arch != 'unsupported'
+    fail_msg: >
+      Unsupported architecture: {{ ansible_facts.architecture }}.
+      Supported: x86_64/amd64 and aarch64/arm64.
+
+# Base packages
+- name: Ensure base packages are present
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gpg
+      - wget
+    state: present
+    update_cache: true
+
+# Resolve arch-specific URLs if set to "auto"
+- name: Resolve architecture-specific download URLs (Cursor + Neovim)
+  ansible.builtin.set_fact:
+    editors_cursor_deb_url_resolved: >-
+      {{
+        (editors_cursor_deb_url if editors_cursor_deb_url != 'auto' else
+         ('https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor' if editors_arch == 'amd64'
+          else 'https://api2.cursor.sh/updates/download/golden/linux-arm64-deb/cursor'))
+      }}
+    editors_neovim_appimage_url_resolved: >-
+      {{
+        (editors_neovim_appimage_url if editors_neovim_appimage_url != 'auto' else
+         ('https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage' if editors_arch == 'amd64'
+          else 'https://github.com/neovim/neovim/releases/latest/download/nvim-linux-arm64.appimage'))
+      }}
+
+# ----------------------------
+# VS Code (Microsoft APT repo)
+# ----------------------------
+- name: Install VS Code repo signing key (Microsoft)
+  when: editors_install_vscode | bool
+  ansible.builtin.shell: |
+    set -euo pipefail
+    wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
+      | gpg --dearmor \
+      | tee /tmp/microsoft.gpg >/dev/null
+    install -D -o root -g root -m 0644 /tmp/microsoft.gpg {{ editors_vscode_keyring_path }}
+    rm -f /tmp/microsoft.gpg
+  args:
+    creates: "{{ editors_vscode_keyring_path }}"
+
+- name: Add VS Code APT source (Deb822)
+  when: editors_install_vscode | bool
+  ansible.builtin.copy:
+    dest: "{{ editors_vscode_sources_path }}"
+    mode: "0644"
+    content: |
+      Types: deb
+      URIs: https://packages.microsoft.com/repos/code
+      Suites: stable
+      Components: main
+      Architectures: amd64,arm64,armhf
+      Signed-By: {{ editors_vscode_keyring_path }}
+
+- name: Install VS Code package
+  when: editors_install_vscode | bool
+  ansible.builtin.apt:
+    name: "{{ editors_vscode_package_name }}"
+    state: present
+    update_cache: true
+
+# ----------------------------
+# Zed (official script; per-user)
+# ----------------------------
+- name: Ensure ~/.local/bin exists for target user (Zed)
+  when: editors_install_zed | bool
+  become: true
+  become_user: "{{ editors_user }}"
+  ansible.builtin.file:
+    path: "/home/{{ editors_user }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: Install Zed (official script) if not present
+  when: editors_install_zed | bool
+  become: true
+  become_user: "{{ editors_user }}"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ "{{ editors_zed_channel }}" = "preview" ]; then
+      export ZED_CHANNEL=preview
+    fi
+    if [ -n "{{ editors_zed_version | trim }}" ]; then
+      export ZED_VERSION="{{ editors_zed_version | trim }}"
+    fi
+    curl -f https://zed.dev/install.sh | sh
+  args:
+    creates: "{{ editors_zed_bin_path }}"
+
+# ----------------------------
+# Cursor (.deb download + install/upgrade by version)
+# ----------------------------
+- name: Gather installed package facts
+  when: editors_install_cursor | bool
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Download Cursor .deb
+  when: editors_install_cursor | bool
+  ansible.builtin.get_url:
+    url: "{{ editors_cursor_deb_url_resolved }}"
+    dest: "{{ editors_cursor_deb_path }}"
+    mode: "0644"
+    force: true
+  changed_when: false
+
+- name: Read Cursor version from downloaded .deb
+  when: editors_install_cursor | bool
+  ansible.builtin.command: "dpkg-deb -f {{ editors_cursor_deb_path }} Version"
+  register: cursor_deb_version
+  changed_when: false
+
+- name: Set installed Cursor version (if present)
+  when: editors_install_cursor | bool
+  ansible.builtin.set_fact:
+    cursor_installed_version: >-
+      {{
+        (ansible_facts.packages.cursor[0].version)
+        if ('cursor' in ansible_facts.packages)
+        else ''
+      }}
+
+- name: Install/upgrade Cursor when version differs
+  when:
+    - editors_install_cursor | bool
+    - cursor_installed_version != (cursor_deb_version.stdout | trim)
+  ansible.builtin.apt:
+    deb: "{{ editors_cursor_deb_path }}"
+    state: present
+
+# ----------------------------
+# Vim
+# ----------------------------
+- name: Install Vim via apt
+  when:
+    - editors_install_vim | bool
+    - editors_vim_install_method == "apt"
+  ansible.builtin.apt:
+    name: vim
+    state: present
+    update_cache: true
+
+# Optional "latest" Vim (source build). Off by default to keep role simple.
+- name: Install Vim build deps (only if Vim latest/source build enabled)
+  when:
+    - editors_install_vim | bool
+    - editors_vim_install_method == "latest"
+  ansible.builtin.apt:
+    name:
+      - git
+      - build-essential
+      - ncurses-dev
+      - libncursesw5-dev
+      - libgtk-3-dev
+      - libx11-dev
+      - libxpm-dev
+      - libxt-dev
+      - python3-dev
+      - ruby-dev
+      - lua5.4
+      - liblua5.4-dev
+    state: present
+    update_cache: true
+
+- name: Check current Vim version (if any)
+  when:
+    - editors_install_vim | bool
+    - editors_vim_install_method == "latest"
+  ansible.builtin.command: vim --version
+  register: vim_version_cmd
+  changed_when: false
+  failed_when: false
+
+- name: Determine if Vim needs install (no vim or not matching configured tag major.minor)
+  when:
+    - editors_install_vim | bool
+    - editors_vim_install_method == "latest"
+  ansible.builtin.set_fact:
+    vim_needs_install: >-
+      {{
+        (vim_version_cmd.rc != 0) or
+        (vim_version_cmd.stdout is not search('VIM - Vi IMproved 9\\.2'))
+      }}
+
+- name: Clone Vim sources (tag)
+  when:
+    - editors_install_vim | bool
+    - editors_vim_install_method == "latest"
+    - vim_needs_install | bool
+  ansible.builtin.git:
+    repo: "{{ editors_vim_git_repo }}"
+    dest: "{{ editors_vim_src_dir }}"
+    version: "{{ editors_vim_tag }}"
+    depth: 1
+    force: true
+
+- name: Build and install Vim from source
+  when:
+    - editors_install_vim | bool
+    - editors_vim_install_method == "latest"
+    - vim_needs_install | bool
+  ansible.builtin.shell: |
+    set -euo pipefail
+    cd "{{ editors_vim_src_dir }}"
+    make distclean || true
+    ./configure {{ editors_vim_configure_opts | join(' ') }}
+    make -j"$(nproc)"
+    make install
+  args:
+    executable: /bin/bash
+
+# ----------------------------
+# Neovim
+# ----------------------------
+- name: Install Neovim via apt
+  when:
+    - editors_install_neovim | bool
+    - editors_neovim_install_method == "apt"
+  ansible.builtin.apt:
+    name: neovim
+    state: present
+    update_cache: true
+
+- name: Ensure /opt/nvim exists (Neovim latest AppImage)
+  when:
+    - editors_install_neovim | bool
+    - editors_neovim_install_method == "latest"
+  ansible.builtin.file:
+    path: "{{ editors_neovim_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Download Neovim AppImage (latest stable)
+  when:
+    - editors_install_neovim | bool
+    - editors_neovim_install_method == "latest"
+  ansible.builtin.get_url:
+    url: "{{ editors_neovim_appimage_url_resolved }}"
+    dest: "{{ editors_neovim_appimage_path }}"
+    mode: "0755"
+    force: true
+
+- name: Ensure nvim is on PATH via symlink
+  when:
+    - editors_install_neovim | bool
+    - editors_neovim_install_method == "latest"
+  ansible.builtin.file:
+    src: "{{ editors_neovim_appimage_path }}"
+    dest: "{{ editors_neovim_symlink_path }}"
+    state: link
+    force: true

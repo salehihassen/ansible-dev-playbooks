@@ -1,42 +1,18 @@
----
-# Main site.yml - Entry point for all dev setup
-# Location: playbooks/site.yml
+# Setup all roles via cli passed args
 
-- name: Dev Environment Setup
-  hosts: dev_machines
-  become: yes
-  gather_facts: yes
+- hosts: localhost
+  connection: local
+  become: true
+  vars:
+    # Accept either:
+    #   -e 'roles_to_run=["editors","docker"]'   (JSON-like string)
+    #   -e 'roles_to_run=[editors,docker]'      (YAML list)
+    #   -e 'roles_to_run=editors'               (single string)
+    roles_to_run_list: >-
+      {{
+        roles_to_run
+        if (roles_to_run is sequence and roles_to_run is not string)
+        else (roles_to_run | from_yaml)
+      }}
 
-  # Pre-flight checks
-  pre_tasks:
-    - name: Validate required Ansible version
-      assert:
-        that:
-          - ansible_version.full is version('2.10', '>=')
-        fail_msg: "Ansible 2.10+ is required"
-      tags: always
-
-    - name: Update apt cache (Debian/Ubuntu)
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
-      when: ansible_os_family == "Debian"
-      tags: install
-
-  # Core roles
-  roles:
-    - role: git
-      tags: [git, install]
-    - role: tmux
-      tags: [tmux, install, config]
-    - role: c_dev
-      tags: [c_dev, install, config]
-    - role: x11_forward
-      tags: [x11, install, config]
-
-  # Post-flight tasks
-  post_tasks:
-    - name: Display setup completion message
-      debug:
-        msg: "✓ Dev environment setup complete!"
-      tags: always
+  roles: "{{ roles_to_run_list }}"
