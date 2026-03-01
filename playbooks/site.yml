@@ -1,18 +1,30 @@
-# Setup all roles via cli passed args
-
 - hosts: localhost
   connection: local
-  become: true
+  become: false
+  gather_facts: true
+
   vars:
-    # Accept either:
-    #   -e 'roles_to_run=["editors","docker"]'   (JSON-like string)
-    #   -e 'roles_to_run=[editors,docker]'      (YAML list)
-    #   -e 'roles_to_run=editors'               (single string)
+    # Accept:
+    #   -e 'roles_to_run=[editors,foo]'
+    #   -e 'roles_to_run=["editors","foo"]'
+    #   -e 'roles_to_run=editors'
     roles_to_run_list: >-
       {{
-        roles_to_run
-        if (roles_to_run is sequence and roles_to_run is not string)
-        else (roles_to_run | from_yaml)
+        (roles_to_run if (roles_to_run is sequence and roles_to_run is not string)
+         else (roles_to_run | from_yaml))
+      }}
+    roles_to_run_final: >-
+      {{
+        roles_to_run_list if (roles_to_run_list is sequence and roles_to_run_list is not string)
+        else [roles_to_run_list]
       }}
 
-  roles: "{{ roles_to_run_list }}"
+  tasks:
+    - name: Show roles to run
+      ansible.builtin.debug:
+        var: roles_to_run_final
+
+    - name: Run requested roles in order
+      ansible.builtin.include_role:
+        name: "{{ item }}"
+      loop: "{{ roles_to_run_final }}"

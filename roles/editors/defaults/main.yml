@@ -1,5 +1,5 @@
 # Target user for per-user installs (Zed)
-editors_user: "{{ ansible_user_id }}"
+editors_user: "{{ ansible_facts.user_id }}"
 
 # What to install
 editors_install_vscode: true

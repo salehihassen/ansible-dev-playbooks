@@ -13,7 +13,13 @@ Ansible installed on the Control node. Managed nodes are linux machines with SSH
 
 ### Editors
 
-Install editors of choice: vs code, cursor, vim, neovim, and/or zed
+Install stock editors of choice: vs code, cursor, vim, neovim, and/or zed
+
+Example:
+```
+ansible-playbook -i 'localhost,' -c local -K playbooks/site.yml \
+  -e 'roles_to_run=[editors]'
+```
 
 ### C Dev setup
 

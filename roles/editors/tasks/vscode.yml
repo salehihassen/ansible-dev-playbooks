@@ -1,0 +1,58 @@
+# ----------------------------
+# VS Code (Microsoft APT repo)
+# ----------------------------
+---
+- name: Download Microsoft signing key (ASCII)
+  ansible.builtin.get_url:
+    url: "https://packages.microsoft.com/keys/microsoft.asc"
+    dest: "/tmp/microsoft.asc"
+    mode: "0644"
+  changed_when: false
+
+- name: Convert Microsoft signing key to keyring (gpg dearmor)
+  ansible.builtin.command: >
+    gpg --dearmor -o {{ editors_vscode_keyring_path }} /tmp/microsoft.asc
+  args:
+    creates: "{{ editors_vscode_keyring_path }}"
+
+- name: Check for legacy VS Code source files
+  ansible.builtin.stat:
+    path: "{{ vscode_src_path }}"
+  loop:
+    - /etc/apt/sources.list.d/vscode.list
+    - /etc/apt/sources.list.d/vscode.sources
+  loop_control:
+    loop_var: vscode_src_path
+  register: vscode_legacy_sources
+
+- name: Remove legacy VS Code source files if present
+  become: true
+  ansible.builtin.file:
+    path: "{{ vscode_stat.vscode_src_path }}"
+    state: absent
+  loop: "{{ vscode_legacy_sources.results }}"
+  loop_control:
+    loop_var: vscode_stat
+    label: "{{ vscode_stat.vscode_src_path }}"
+  when:
+    - vscode_stat.stat.exists
+
+- name: Add VS Code APT source (Deb822) - idempotent
+  become: true
+  ansible.builtin.deb822_repository:
+    name: vscode
+    types: [deb]
+    uris: ["https://packages.microsoft.com/repos/code"]
+    suites: ["stable"]
+    components: ["main"]
+    architectures: ["amd64", "arm64", "armhf"]
+    signed_by: "{{ editors_vscode_keyring_path }}"
+    state: present
+
+- name: Install VS Code package
+  become: true
+  become_method: sudo
+  ansible.builtin.apt:
+    name: "{{ editors_vscode_package_name }}"
+    state: present
+    update_cache: true
