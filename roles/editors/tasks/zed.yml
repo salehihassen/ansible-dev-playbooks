@@ -23,7 +23,7 @@
   register: zed_install
   ignore_errors: true
 
-- name: Debug Zed install output
-  ansible.builtin.debug:
-    var: zed_install
-  when: zed_install is defined
+# - name: Debug Zed install output
+#   ansible.builtin.debug:
+#     var: zed_install
+#   when: zed_install is defined
