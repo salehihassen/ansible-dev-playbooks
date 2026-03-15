@@ -1,0 +1,53 @@
+# Target user for per-user installs (Zed)
+editors_user: "{{ ansible_facts.user_id }}"
+
+# What to install
+editors_install_vscode: true
+editors_install_zed: true
+editors_install_cursor: true
+editors_install_vim: true
+editors_install_neovim: true
+
+# ----------------------------
+# VS Code
+# ----------------------------
+editors_vscode_package_name: "code"
+
+# ----------------------------
+# Zed (official install script; per-user)
+# ----------------------------
+editors_zed_channel: "stable"     # "stable" or "preview"
+editors_zed_version: ""          # optional pin ("" = latest)
+
+# ----------------------------
+# Cursor
+# ----------------------------
+# Use "auto" to select correct URL based on CPU arch (amd64 vs arm64)
+editors_cursor_deb_url: "auto"
+
+# ----------------------------
+# Vim / Neovim
+# ----------------------------
+# To keep things simple and robust by default:
+# - Vim: apt (repo version)
+# - Neovim: latest AppImage (official release) for newer stable than apt on many distros
+editors_vim_install_method: "apt"        # "apt" or "latest" (source build)
+editors_neovim_install_method: "latest"  # "apt" or "latest"
+
+# Neovim AppImage:
+# Use "auto" to pick x86_64 vs arm64 AppImage from official releases
+editors_neovim_appimage_url: "auto"
+
+# If you switch Vim to "latest" (source build), these are used:
+editors_vim_git_repo: "https://github.com/vim/vim.git"
+editors_vim_src_dir: "/usr/local/src/vim"
+editors_vim_tag: "v9.2.0000"  # stable line tag; can change if you want another stable tag
+editors_vim_configure_opts:
+  - "--prefix=/usr/local"
+  - "--with-features=huge"
+  - "--enable-multibyte"
+  - "--enable-terminal"
+  - "--enable-cscope"
+  - "--enable-fail-if-missing"
+  - "--with-tlib=ncursesw"
+  - "--with-compiledby=ansible-editors"

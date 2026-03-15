@@ -1,0 +1,15 @@
+# Keyrings / sources
+editors_keyrings_dir: /usr/share/keyrings
+editors_vscode_keyring_path: /usr/share/keyrings/microsoft.gpg
+editors_vscode_sources_path: /etc/apt/sources.list.d/vscode.sources
+
+# Cursor temp download path
+editors_cursor_deb_path: "/tmp/cursor-linux.deb"
+
+# Zed install marker (official script typically creates ~/.local/bin/zed)
+editors_zed_bin_path: "/home/{{ editors_user }}/.local/bin/zed"
+
+# Neovim AppImage install paths
+editors_neovim_dir: "/opt/nvim"
+editors_neovim_appimage_path: "/opt/nvim/nvim"
+editors_neovim_symlink_path: "/usr/local/bin/nvim"

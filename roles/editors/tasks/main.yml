@@ -1,0 +1,64 @@
+# ----------------------------
+# Guardrails: Debian-family only
+# ----------------------------
+- name: Fail if not Debian-family
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == "Debian"
+    fail_msg: >
+      This role supports Debian-family distros only (Debian/Ubuntu/Pop!_OS).
+      Detected: os_family={{ ansible_facts.os_family }}, distro={{ ansible_facts.distribution }}.
+    success_msg: "OS check passed: Debian-family detected."
+
+# Normalize arch for auto URLs
+- name: Determine normalized architecture (amd64/arm64)
+  ansible.builtin.set_fact:
+    editors_arch: >-
+      {{
+        'amd64' if ansible_facts.architecture in ['x86_64', 'amd64'] else
+        'arm64' if ansible_facts.architecture in ['aarch64', 'arm64'] else
+        'unsupported'
+      }}
+
+- name: Fail if unsupported CPU architecture
+  ansible.builtin.assert:
+    that:
+      - editors_arch != 'unsupported'
+    fail_msg: >
+      Unsupported architecture: {{ ansible_facts.architecture }}.
+      Supported: x86_64/amd64 and aarch64/arm64.
+
+# Base packages
+- name: Ensure base packages are present
+  become: true
+  become_method: sudo
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gpg
+      - wget
+    state: present
+    update_cache: true
+
+
+# Run each editors install task if var is set to true
+- name: Install Vim editor
+  ansible.builtin.import_tasks: vim.yml
+  when: editors_install_vim | bool
+
+- name: Install Neovim editor
+  ansible.builtin.import_tasks: nvim.yml
+  when: editors_install_neovim | bool
+
+- name: Install VS Code editor
+  ansible.builtin.import_tasks: vscode.yml
+  when: editors_install_vscode | bool
+
+- name: Install Cursor editor
+  ansible.builtin.import_tasks: cursor.yml
+  when: editors_install_cursor | bool
+
+- name: Install Zed editor
+  ansible.builtin.import_tasks: zed.yml
+  when: editors_install_zed | bool

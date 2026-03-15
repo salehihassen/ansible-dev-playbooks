@@ -1,42 +1,30 @@
----
-# Main site.yml - Entry point for all dev setup
-# Location: playbooks/site.yml
+- hosts: localhost
+  connection: local
+  become: false
+  gather_facts: true
 
-- name: Dev Environment Setup
-  hosts: dev_machines
-  become: yes
-  gather_facts: yes
+  vars:
+    # Accept:
+    #   -e 'roles_to_run=[editors,foo]'
+    #   -e 'roles_to_run=["editors","foo"]'
+    #   -e 'roles_to_run=editors'
+    roles_to_run_list: >-
+      {{
+        (roles_to_run if (roles_to_run is sequence and roles_to_run is not string)
+         else (roles_to_run | from_yaml))
+      }}
+    roles_to_run_final: >-
+      {{
+        roles_to_run_list if (roles_to_run_list is sequence and roles_to_run_list is not string)
+        else [roles_to_run_list]
+      }}
 
-  # Pre-flight checks
-  pre_tasks:
-    - name: Validate required Ansible version
-      assert:
-        that:
-          - ansible_version.full is version('2.10', '>=')
-        fail_msg: "Ansible 2.10+ is required"
-      tags: always
+  tasks:
+    - name: Show roles to run
+      ansible.builtin.debug:
+        var: roles_to_run_final
 
-    - name: Update apt cache (Debian/Ubuntu)
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
-      when: ansible_os_family == "Debian"
-      tags: install
-
-  # Core roles
-  roles:
-    - role: git
-      tags: [git, install]
-    - role: tmux
-      tags: [tmux, install, config]
-    - role: c_dev
-      tags: [c_dev, install, config]
-    - role: x11_forward
-      tags: [x11, install, config]
-
-  # Post-flight tasks
-  post_tasks:
-    - name: Display setup completion message
-      debug:
-        msg: "✓ Dev environment setup complete!"
-      tags: always
+    - name: Run requested roles in order
+      ansible.builtin.include_role:
+        name: "{{ item }}"
+      loop: "{{ roles_to_run_final }}"

@@ -1,0 +1,45 @@
+# ----------------------------
+# Cursor (.deb download + install/upgrade by version)
+# ----------------------------
+---
+
+# Resolve arch-specific URLs if set to "auto"
+- name: Resolve architecture-specific download URLs (Cursor)
+  ansible.builtin.set_fact:
+    editors_cursor_deb_url_resolved: >-
+      {{
+        (editors_cursor_deb_url if editors_cursor_deb_url != 'auto' else
+         ('https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/' if editors_arch == 'amd64'
+          else 'https://api2.cursor.sh/updates/download/golden/linux-arm64-deb/cursor/'))
+      }}
+
+- name: Gather installed package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Check whether Cursor is already installed
+  ansible.builtin.set_fact:
+    editors_cursor_installed: "{{ 'cursor' in ansible_facts.packages }}"
+
+- name: Skip Cursor install tasks when already installed
+  ansible.builtin.debug:
+    msg: "Skipping Cursor install tasks because cursor is already installed."
+  when: editors_cursor_installed
+  changed_when: false
+
+- name: Install Cursor when not already installed
+  when: not editors_cursor_installed
+  block:
+    - name: Download Cursor .deb
+      ansible.builtin.get_url:
+        url: "{{ editors_cursor_deb_url_resolved }}"
+        dest: "{{ editors_cursor_deb_path }}"
+        mode: "0644"
+        force: true
+
+    - name: Install Cursor package
+      become: true
+      become_method: sudo
+      ansible.builtin.apt:
+        deb: "{{ editors_cursor_deb_path }}"
+        state: present
