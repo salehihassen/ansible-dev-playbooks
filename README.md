@@ -4,8 +4,24 @@
 
 Ansible installed on the Control node. Managed nodes are linux machines with SSH enabled.
 
-## Setup
+## Setup - Local
 
+- Clone this repo on the target machine
+- Install Ansible on the target machine
+  ```
+  sudo apt-add-repository ppa:ansible/ansible && sudo apt install ansible
+  ```
+- Run the ansible playbook.
+  ```
+  ansible-playbook -i 'localhost,' -c local -K playbooks/site.yml   -e 'roles_to_run=[editors]'
+  ```
+
+## Setup - Remote
+
+- Install OpenSSH server on the target machine
+  ```
+  sudo apt install openssh-server
+  ```
 - Add managed nodes to [inventory/hosts.yml](./inventory/hosts.yml)
 - Add hostvars to [/inventory/host_vars/](./inventory/host_vars/)
 
