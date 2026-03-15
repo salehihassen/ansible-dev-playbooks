@@ -1,27 +1,41 @@
 # ----------------------------
 # Zed (official script; per-user)
 # ----------------------------
-- name: Ensure ~/.local/bin exists for target user (Zed)
-  ansible.builtin.file:
-    path: "/home/{{ editors_user }}/.local/bin"
-    state: directory
-    mode: "0755"
+- name: Check whether Zed is already installed
+  ansible.builtin.stat:
+    path: "{{ editors_zed_bin_path }}"
+  register: editors_zed_binary
 
-- name: Install Zed (official script) if not present
-  ansible.builtin.shell: |
-    set -euo pipefail
-    if [ "{{ editors_zed_channel }}" = "preview" ]; then
-      export ZED_CHANNEL=preview
-    fi
-    if [ -n "{{ editors_zed_version | trim }}" ]; then
-      export ZED_VERSION="{{ editors_zed_version | trim }}"
-    fi
-    curl -f https://zed.dev/install.sh | sh
-  args:
-    executable: /bin/bash
-    creates: "{{ editors_zed_bin_path }}"
-  register: zed_install
-  ignore_errors: true
+- name: Skip Zed install tasks when already installed
+  ansible.builtin.debug:
+    msg: "Skipping Zed install tasks because {{ editors_zed_bin_path }} already exists."
+  when: editors_zed_binary.stat.exists
+  changed_when: false
+
+- name: Install Zed when not already installed
+  when: not editors_zed_binary.stat.exists
+  block:
+    - name: Ensure ~/.local/bin exists for target user (Zed)
+      ansible.builtin.file:
+        path: "/home/{{ editors_user }}/.local/bin"
+        state: directory
+        mode: "0755"
+
+    - name: Install Zed (official script) if not present
+      ansible.builtin.shell: |
+        set -euo pipefail
+        if [ "{{ editors_zed_channel }}" = "preview" ]; then
+          export ZED_CHANNEL=preview
+        fi
+        if [ -n "{{ editors_zed_version | trim }}" ]; then
+          export ZED_VERSION="{{ editors_zed_version | trim }}"
+        fi
+        curl -f https://zed.dev/install.sh | sh
+      args:
+        executable: /bin/bash
+        creates: "{{ editors_zed_bin_path }}"
+      register: zed_install
+      ignore_errors: true
 
 # - name: Debug Zed install output
 #   ansible.builtin.debug:

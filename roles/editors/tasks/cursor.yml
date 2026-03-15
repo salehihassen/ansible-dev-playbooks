@@ -17,33 +17,29 @@
   ansible.builtin.package_facts:
     manager: auto
 
-- name: Download Cursor .deb
-  ansible.builtin.get_url:
-    url: "{{ editors_cursor_deb_url_resolved }}"
-    dest: "{{ editors_cursor_deb_path }}"
-    mode: "0644"
-    force: true
+- name: Check whether Cursor is already installed
+  ansible.builtin.set_fact:
+    editors_cursor_installed: "{{ 'cursor' in ansible_facts.packages }}"
 
-- name: Read Cursor version from downloaded .deb
-  ansible.builtin.command: "dpkg-deb -f {{ editors_cursor_deb_path }} Version"
-  register: cursor_deb_version
+- name: Skip Cursor install tasks when already installed
+  ansible.builtin.debug:
+    msg: "Skipping Cursor install tasks because cursor is already installed."
+  when: editors_cursor_installed
   changed_when: false
 
-- name: Download and install Cursor (privileged block)
-  become: true
-  become_method: sudo
+- name: Install Cursor when not already installed
+  when: not editors_cursor_installed
   block:
-  - name: Set installed Cursor version (if present)
-    ansible.builtin.set_fact:
-      cursor_installed_version: >-
-        {{
-          (ansible_facts.packages.cursor[0].version)
-          if ('cursor' in ansible_facts.packages)
-          else ''
-        }}
-  - name: Install/upgrade Cursor when version differs
-    when:
-      - cursor_installed_version != (cursor_deb_version.stdout | trim)
-    ansible.builtin.apt:
-      deb: "{{ editors_cursor_deb_path }}"
-      state: present
+    - name: Download Cursor .deb
+      ansible.builtin.get_url:
+        url: "{{ editors_cursor_deb_url_resolved }}"
+        dest: "{{ editors_cursor_deb_path }}"
+        mode: "0644"
+        force: true
+
+    - name: Install Cursor package
+      become: true
+      become_method: sudo
+      ansible.builtin.apt:
+        deb: "{{ editors_cursor_deb_path }}"
+        state: present

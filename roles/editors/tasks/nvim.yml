@@ -2,49 +2,68 @@
 # Neovim
 # ----------------------------
 
-- name: Install Neovim via apt
-  when: editors_neovim_install_method == "apt"
-  become: true
+- name: Check whether Neovim is already installed
+  ansible.builtin.command: command -v nvim
+  register: editors_nvim_binary
+  changed_when: false
+  failed_when: false
+
+- name: Set Neovim installed state
+  ansible.builtin.set_fact:
+    editors_nvim_installed: "{{ editors_nvim_binary.rc == 0 }}"
+
+- name: Skip Neovim install tasks when already installed
+  ansible.builtin.debug:
+    msg: "Skipping Neovim install tasks because nvim is already installed."
+  when: editors_nvim_installed
+  changed_when: false
+
+- name: Install Neovim when not already installed
+  when: not editors_nvim_installed
   block:
-    - name: Install Neovim package
-      ansible.builtin.apt:
-        name: neovim
-        state: present
-        update_cache: true
+    - name: Install Neovim via apt
+      when: editors_neovim_install_method == "apt"
+      become: true
+      block:
+        - name: Install Neovim package
+          ansible.builtin.apt:
+            name: neovim
+            state: present
+            update_cache: true
 
-- name: Install Neovim via AppImage (latest)
-  when: editors_neovim_install_method == "latest"
-  become: true
-  block:
-    - name: Resolve architecture-specific download URL (Neovim AppImage)
-      ansible.builtin.set_fact:
-        editors_neovim_appimage_url_resolved: >-
-          {{
-            (editors_neovim_appimage_url if editors_neovim_appimage_url != 'auto' else
-             ('https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage' if editors_arch == 'amd64'
-              else 'https://github.com/neovim/neovim/releases/latest/download/nvim-linux-arm64.appimage'))
-          }}
+    - name: Install Neovim via AppImage (latest)
+      when: editors_neovim_install_method == "latest"
+      become: true
+      block:
+        - name: Resolve architecture-specific download URL (Neovim AppImage)
+          ansible.builtin.set_fact:
+            editors_neovim_appimage_url_resolved: >-
+              {{
+                (editors_neovim_appimage_url if editors_neovim_appimage_url != 'auto' else
+                 ('https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage' if editors_arch == 'amd64'
+                  else 'https://github.com/neovim/neovim/releases/latest/download/nvim-linux-arm64.appimage'))
+              }}
 
-    - name: Ensure /opt/nvim exists (Neovim AppImage)
-      ansible.builtin.file:
-        path: "{{ editors_neovim_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
+        - name: Ensure /opt/nvim exists (Neovim AppImage)
+          ansible.builtin.file:
+            path: "{{ editors_neovim_dir }}"
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
 
-    - name: Download Neovim AppImage (latest stable)
-      ansible.builtin.get_url:
-        url: "{{ editors_neovim_appimage_url_resolved }}"
-        dest: "{{ editors_neovim_appimage_path }}"
-        owner: root
-        group: root
-        mode: "0755"
-        force: true
+        - name: Download Neovim AppImage (latest stable)
+          ansible.builtin.get_url:
+            url: "{{ editors_neovim_appimage_url_resolved }}"
+            dest: "{{ editors_neovim_appimage_path }}"
+            owner: root
+            group: root
+            mode: "0755"
+            force: true
 
-    - name: Ensure nvim is on PATH via symlink
-      ansible.builtin.file:
-        src: "{{ editors_neovim_appimage_path }}"
-        dest: "{{ editors_neovim_symlink_path }}"
-        state: link
-        force: true
+        - name: Ensure nvim is on PATH via symlink
+          ansible.builtin.file:
+            src: "{{ editors_neovim_appimage_path }}"
+            dest: "{{ editors_neovim_symlink_path }}"
+            state: link
+            force: true
