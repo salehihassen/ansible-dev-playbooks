@@ -1,9 +1,0 @@
----
-# Default variables for docker role
-
-# Docker service settings
-docker_service_state: started
-docker_service_enabled: true
-
-# User to add to docker group (defaults to ansible_user_id)
-docker_user: "{{ ansible_user_id }}"
