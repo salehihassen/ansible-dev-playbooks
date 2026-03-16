@@ -37,6 +37,14 @@ ansible-playbook -i 'localhost,' -c local -K playbooks/site.yml \
   -e 'roles_to_run=[editors]'
 ```
 
+### UV Python Dev setup
+
+Install Astral UV.
+
+### Docker setup
+
+Install Docker Engine.
+
 ### C Dev setup
 
 Install C development environment: gcc, clang, make, gdb, valgrind, bear, etc..
@@ -56,7 +64,7 @@ Enable X11 forwarding for remote access to GUIs.
 ## Appendix
 ### Instances I used this
 
-Mar 16 2026 - install UV python on my laptop, a bit overkill but may become a pre-req step to another installs.
+Mar 16 2026 - install UV python and docker on my laptop, a bit overkill but may become a pre-req step to another installs.
 
 March 10-15 2026 - install editors I'm interested in on my laptop.
 
