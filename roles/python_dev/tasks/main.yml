@@ -1,0 +1,29 @@
+---
+- name: Check if UV is already installed
+  ansible.builtin.command: which uv
+  register: uv_check
+  failed_when: false
+  changed_when: false
+
+- name: Install UV
+  when: uv_check.rc != 0
+  block:
+    - name: Download and install UV
+      ansible.builtin.shell: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+      args:
+        creates: "{{ ansible_env.HOME }}/.cargo/bin/uv"
+
+    - name: Ensure UV is in PATH for current session
+      ansible.builtin.set_fact:
+        ansible_env:
+          PATH: "{{ ansible_env.HOME }}/.cargo/bin:{{ ansible_env.PATH }}"
+
+- name: Verify UV installation
+  ansible.builtin.command: uv --version
+  register: uv_version
+  changed_when: false
+
+- name: Display UV version
+  ansible.builtin.debug:
+    msg: "UV version installed: {{ uv_version.stdout }}"

@@ -1,0 +1,14 @@
+---
+# Default variables for python_dev
+
+# UV installation settings
+uv_install_url: "https://astral.sh/uv/install.sh"
+
+# Optional: Specify a specific UV version to install
+# uv_version: "latest"
+
+# Shell configuration files to update (optional)
+uv_update_shell_config: true
+uv_shell_config_files:
+  - "{{ ansible_env.HOME }}/.bashrc"
+  - "{{ ansible_env.HOME }}/.zshrc"
