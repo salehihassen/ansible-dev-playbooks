@@ -1,0 +1,133 @@
+---
+- name: Check if Docker is already installed
+  ansible.builtin.command: docker --version
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Verify Debian-based system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == "Debian"
+    fail_msg: "This role only supports Debian-based Linux distributions. Detected: {{ ansible_facts['os_family'] }}"
+    success_msg: "Debian-based system detected ({{ ansible_facts['distribution'] }}), proceeding with installation"
+
+- name: Set Docker repository variables based on distribution
+  ansible.builtin.set_fact:
+    docker_repo_distro: "{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['distribution'] == 'Pop!_OS' else 'debian' }}"
+    docker_codename: "{{ ansible_facts['distribution_release'] }}"
+
+- name: Display detected configuration
+  ansible.builtin.debug:
+    msg: "Using Docker {{ docker_repo_distro }} repository with codename: {{ docker_codename }}"
+
+- name: Install Docker Engine
+  when: docker_check.rc != 0
+  block:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install prerequisite packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    - name: Create keyrings directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker GPG key
+      become: true
+      ansible.builtin.get_url:
+        url: "https://download.docker.com/linux/{{ docker_repo_distro }}/gpg"
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Add Docker repository (DEB822 format)
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/docker.sources
+        content: |
+          Types: deb
+          URIs: https://download.docker.com/linux/{{ docker_repo_distro }}
+          Suites: {{ docker_codename }}
+          Components: stable
+          Signed-By: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+      register: docker_repo_added
+
+    - name: Update apt cache after adding Docker repo
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install Docker packages
+      become: true
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Start and enable Docker service
+      become: true
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Test Docker functionality (using sudo)
+      become: true
+      ansible.builtin.command: sudo -u {{ ansible_facts['user_id'] }} -g docker docker ps
+      register: docker_test
+      changed_when: false
+      ignore_errors: true
+
+- name: Add current user to docker group
+  become: true
+  ansible.builtin.user:
+    name: "{{ ansible_facts['user_id'] }}"
+    groups: docker
+    append: true
+  register: user_added_to_docker
+
+- name: Verify Docker installation
+  ansible.builtin.command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Display Docker version
+  ansible.builtin.debug:
+    msg: "Docker installed: {{ docker_version.stdout }}"
+
+- name: Test Docker functionality (using sudo)
+  become: true
+  ansible.builtin.command: sudo -u {{ ansible_facts['user_id'] }} -g docker docker ps
+  register: docker_test
+  changed_when: false
+  ignore_errors: true
+
+- name: Display post-installation instructions
+  ansible.builtin.debug:
+    msg: |
+      {% if user_added_to_docker.changed %}
+      User '{{ ansible_facts['user_id'] }}' was added to the docker group.
+      
+      To use Docker without sudo in new shell sessions:
+        - Log out and back in, OR
+        - Run: newgrp docker
+      
+      Docker is working: {{ 'Yes' if docker_test.rc == 0 else 'Test skipped' }}
+      {% else %}
+      User '{{ ansible_facts['user_id'] }}' was already in docker group.
+      {% endif %}
