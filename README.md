@@ -56,6 +56,9 @@ Enable X11 forwarding for remote access to GUIs.
 ## Appendix
 ### Instances I used this
 
+Mar 16 2026 - install UV python on my laptop, a bit overkill but may become a pre-req step to another installs.
+
+March 10-15 2026 - install editors I'm interested in on my laptop.
 
 Dec 23 2025 - automate setting up x11 forwarding support for one of my personal servers
 ```
