@@ -16,10 +16,20 @@
   ansible.builtin.set_fact:
     docker_repo_distro: "{{ 'ubuntu' if ansible_facts['distribution'] == 'Ubuntu' or ansible_facts['distribution'] == 'Pop!_OS' else 'debian' }}"
     docker_codename: "{{ ansible_facts['distribution_release'] }}"
+    docker_repo_arch: >-
+      {{
+        {
+          'x86_64': 'amd64',
+          'aarch64': 'arm64',
+          'armv7l': 'armhf',
+          'armv6l': 'armhf',
+          'i386': 'i386'
+        }.get(ansible_facts['architecture'], ansible_facts['architecture'])
+      }}
 
 - name: Display detected configuration
   ansible.builtin.debug:
-    msg: "Using Docker {{ docker_repo_distro }} repository with codename: {{ docker_codename }}"
+    msg: "Using Docker {{ docker_repo_distro }} repository with codename: {{ docker_codename }} and architecture: {{ docker_repo_arch }}"
 
 - name: Install Docker Engine
   when: docker_check.rc != 0
@@ -59,6 +69,7 @@
           URIs: https://download.docker.com/linux/{{ docker_repo_distro }}
           Suites: {{ docker_codename }}
           Components: stable
+          Architectures: {{ docker_repo_arch }}
           Signed-By: /etc/apt/keyrings/docker.asc
         mode: '0644'
       register: docker_repo_added
