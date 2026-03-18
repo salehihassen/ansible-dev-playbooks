@@ -1,0 +1,5 @@
+
+- name: Set Document Viewer as the default PDF application
+  command: xdg-mime default evince.desktop application/pdf
+  args:
+    removes: "/usr/share/applications/evince.desktop"
