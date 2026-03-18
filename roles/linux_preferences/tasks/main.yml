@@ -3,3 +3,12 @@
   command: xdg-mime default evince.desktop application/pdf
   args:
     removes: "/usr/share/applications/evince.desktop"
+- name: Update apt package index
+  apt:
+    update_cache: yes
+  become: true
+- name: Install Synaptics DisplayPort driver
+  apt:
+    name: xserver-xorg-input-synaptics
+    state: present
+  become: true
