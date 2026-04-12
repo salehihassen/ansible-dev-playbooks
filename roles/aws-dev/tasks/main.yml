@@ -1,0 +1,64 @@
+---
+# Assumption:
+# - curl is already present from a prerequisite role, per your request.
+# - This role ensures unzip is available because AWS CLI v2 installation requires it.
+# - This example targets Linux x86_64, matching the AWS docs URL you provided.
+
+- name: Assert curl is available from prerequisite role
+  ansible.builtin.command: curl --version
+  register: aws_dev_curl_check
+  changed_when: false
+
+- name: Ensure unzip is installed
+  ansible.builtin.package:
+    name: unzip
+    state: present
+  become: true
+
+- name: Download AWS CLI v2 installer to /tmp
+  ansible.builtin.get_url:
+    url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+    dest: /tmp/awscliv2.zip
+    mode: '0644'
+    force: true
+  become: true
+
+- name: Remove previous extracted installer directory from /tmp
+  ansible.builtin.file:
+    path: /tmp/aws
+    state: absent
+  become: true
+
+- name: Unarchive AWS CLI installer under /tmp
+  ansible.builtin.unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp
+    remote_src: true
+  become: true
+
+- name: Install or update AWS CLI v2
+  ansible.builtin.command:
+    cmd: /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+  become: true
+  register: aws_cli_install
+
+- name: Clean up extracted installer directory
+  ansible.builtin.file:
+    path: /tmp/aws
+    state: absent
+  become: true
+
+- name: Clean up AWS CLI installer zip
+  ansible.builtin.file:
+    path: /tmp/awscliv2.zip
+    state: absent
+  become: true
+
+- name: Verify installed AWS CLI version
+  ansible.builtin.command: /usr/local/bin/aws --version
+  register: aws_cli_version
+  changed_when: false
+
+- name: Show installed AWS CLI version
+  ansible.builtin.debug:
+    msg: "{{ aws_cli_version.stdout }}"
